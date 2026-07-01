@@ -1,6 +1,6 @@
 {
-  "name": "NGL Clone",
-  "short_name": "NGL",
+  "name": "Ben Anonyme",
+  "short_name": "Ben Anonyme",
   "description": "Envoie des messages anonymes",
   "start_url": "./index.html",
   "display": "standalone",
