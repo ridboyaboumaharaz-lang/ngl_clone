@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ma boîte de réception</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#ff6a00">
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -42,6 +44,17 @@
     font-weight: bold;
   }
   #empty { text-align: center; opacity: 0.8; margin-top: 40px; }
+  #error-box {
+    background: rgba(0,0,0,0.6);
+    border: 2px solid #ffcc00;
+    padding: 12px;
+    border-radius: 10px;
+    margin-top: 12px;
+    font-size: 12px;
+    word-break: break-all;
+    white-space: pre-wrap;
+    display: none;
+  }
 </style>
 </head>
 <body>
@@ -49,13 +62,14 @@
 <button id="logout" onclick="logout()">Déconnexion</button>
 <h1>📩 Tes messages anonymes</h1>
 <div id="link-box">Chargement de ton lien...</div>
+<div id="error-box"></div>
 <div id="messages"></div>
 <div id="empty" style="display:none;">Aucun message pour l'instant.</div>
 
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
   import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
-  import { getFirestore, collection, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+  import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyBaV7Ch57qtY1kmswoU4tBUcbTuUTQV5Ec",
@@ -74,13 +88,18 @@
     signOut(auth).then(() => window.location.href = "login.html");
   }
 
+  function showError(e) {
+    const box = document.getElementById("error-box");
+    box.style.display = "block";
+    box.textContent = "Erreur détaillée :\n" + (e && e.message ? e.message : String(e));
+  }
+
   onAuthStateChanged(auth, async (user) => {
     if (!user) {
       window.location.href = "login.html";
       return;
     }
 
-    // On utilise la partie avant @ de l'email comme "nom d'utilisateur"
     const username = user.email.split("@")[0];
     const linkBox = document.getElementById("link-box");
     const link = window.location.origin + window.location.pathname.replace("inbox.html", "index.html") + "?u=" + username;
@@ -89,8 +108,7 @@
     try {
       const q = query(
         collection(db, "messages"),
-        where("to", "==", username),
-        orderBy("createdAt", "desc")
+        where("to", "==", username)
       );
       const snap = await getDocs(q);
 
@@ -99,18 +117,26 @@
         return;
       }
 
+      const docs = [];
+      snap.forEach(doc => docs.push(doc.data()));
+      docs.sort((a, b) => {
+        const ta = a.createdAt ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      });
+
       const container = document.getElementById("messages");
-      snap.forEach(doc => {
-        const data = doc.data();
+      docs.forEach(data => {
         const div = document.createElement("div");
         div.className = "msg";
         const date = data.createdAt ? data.createdAt.toDate().toLocaleString("fr-FR") : "";
-        div.innerHTML = "<div>" + data.text.replace(/</g, "&lt;") + "</div><div class='date'>" + date + "</div>";
+        const text = data.text ? data.text.replace(/</g, "&lt;") : "(message vide)";
+        div.innerHTML = "<div>" + text + "</div><div class='date'>" + date + "</div>";
         container.appendChild(div);
       });
     } catch (e) {
       console.error(e);
-      document.getElementById("link-box").innerHTML += "<br>Erreur de chargement des messages.";
+      showError(e);
     }
   });
 </script>
