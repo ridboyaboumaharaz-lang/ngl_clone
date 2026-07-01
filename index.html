@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Message anonyme</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #ff6a00, #ee0979);
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .card {
+    background: rgba(0,0,0,0.4);
+    padding: 30px;
+    border-radius: 20px;
+    width: 85%;
+    max-width: 400px;
+    text-align: center;
+  }
+  h1 { font-size: 22px; }
+  textarea {
+    width: 100%;
+    height: 100px;
+    border-radius: 10px;
+    border: none;
+    padding: 10px;
+    font-size: 16px;
+    resize: none;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #ee0979;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  #status { margin-top: 10px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1 id="title">Envoie-moi un message anonyme 👀</h1>
+  <textarea id="message" placeholder="Écris ton message ici..."></textarea>
+  <button onclick="sendMessage()">Envoyer</button>
+  <div id="status"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBaV7Ch57qtY1kmswoU4tBUcbTuUTQV5Ec",
+    authDomain: "ridouane-gl.firebaseapp.com",
+    projectId: "ridouane-gl",
+    storageBucket: "ridouane-gl.firebasestorage.app",
+    messagingSenderId: "635101420665",
+    appId: "1:635101420665:web:14f7882f28e928388cc8a8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // Récupère le nom d'utilisateur dans le lien : index.html?u=ben
+  const params = new URLSearchParams(window.location.search);
+  const username = params.get("u") || "quelqu'un";
+  document.getElementById("title").innerText = `Envoie un message anonyme à ${username} 👀`;
+
+  window.sendMessage = async function() {
+    const msgBox = document.getElementById("message");
+    const status = document.getElementById("status");
+    const text = msgBox.value.trim();
+
+    if (text === "") {
+      status.innerText = "Écris d'abord un message !";
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, "messages"), {
+        to: username,
+        text: text,
+        createdAt: serverTimestamp()
+      });
+      status.innerText = "Message envoyé ✅";
+      msgBox.value = "";
+    } catch (e) {
+      status.innerText = "Erreur, réessaie.";
+      console.error(e);
+    }
+  }
+</script>
+
+</body>
+</html>
+
+o
+

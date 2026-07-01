@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ma boîte de réception</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #ff6a00, #ee0979);
+    min-height: 100vh;
+    margin: 0;
+    color: white;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  h1 { font-size: 20px; text-align: center; }
+  #link-box {
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 14px;
+    word-break: break-all;
+  }
+  .msg {
+    background: rgba(0,0,0,0.4);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .msg .date { font-size: 11px; opacity: 0.7; margin-top: 8px; }
+  #logout {
+    display: block;
+    margin: 0 auto 20px auto;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #ee0979;
+    font-weight: bold;
+  }
+  #empty { text-align: center; opacity: 0.8; margin-top: 40px; }
+</style>
+</head>
+<body>
+
+<button id="logout" onclick="logout()">Déconnexion</button>
+<h1>📩 Tes messages anonymes</h1>
+<div id="link-box">Chargement de ton lien...</div>
+<div id="messages"></div>
+<div id="empty" style="display:none;">Aucun message pour l'instant.</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, query, where, orderBy, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBaV7Ch57qtY1kmswoU4tBUcbTuUTQV5Ec",
+    authDomain: "ridouane-gl.firebaseapp.com",
+    projectId: "ridouane-gl",
+    storageBucket: "ridouane-gl.firebasestorage.app",
+    messagingSenderId: "635101420665",
+    appId: "1:635101420665:web:14f7882f28e928388cc8a8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  window.logout = function() {
+    signOut(auth).then(() => window.location.href = "login.html");
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    // On utilise la partie avant @ de l'email comme "nom d'utilisateur"
+    const username = user.email.split("@")[0];
+    const linkBox = document.getElementById("link-box");
+    const link = window.location.origin + window.location.pathname.replace("inbox.html", "index.html") + "?u=" + username;
+    linkBox.innerHTML = "Ton lien à partager :<br><b>" + link + "</b>";
+
+    try {
+      const q = query(
+        collection(db, "messages"),
+        where("to", "==", username),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        document.getElementById("empty").style.display = "block";
+        return;
+      }
+
+      const container = document.getElementById("messages");
+      snap.forEach(doc => {
+        const data = doc.data();
+        const div = document.createElement("div");
+        div.className = "msg";
+        const date = data.createdAt ? data.createdAt.toDate().toLocaleString("fr-FR") : "";
+        div.innerHTML = "<div>" + data.text.replace(/</g, "&lt;") + "</div><div class='date'>" + date + "</div>";
+        container.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+      document.getElementById("link-box").innerHTML += "<br>Erreur de chargement des messages.";
+    }
+  });
+</script>
+
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Connexion</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #ff6a00, #ee0979);
+    height: 100vh;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+  }
+  .card {
+    background: rgba(0,0,0,0.4);
+    padding: 30px;
+    border-radius: 20px;
+    width: 85%;
+    max-width: 380px;
+    text-align: center;
+  }
+  input {
+    width: 100%;
+    padding: 12px;
+    margin-top: 10px;
+    border-radius: 10px;
+    border: none;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #ee0979;
+    font-weight: bold;
+    font-size: 16px;
+  }
+  #status { margin-top: 10px; font-size: 14px; }
+  .toggle { margin-top: 15px; font-size: 13px; text-decoration: underline; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <h1 id="title">Connexion</h1>
+  <input type="email" id="email" placeholder="Email">
+  <input type="password" id="password" placeholder="Mot de passe">
+  <button onclick="login()">Se connecter</button>
+  <div class="toggle" onclick="toggleMode()">Pas encore de compte ? S'inscrire</div>
+  <div id="status"></div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBaV7Ch57qtY1kmswoU4tBUcbTuUTQV5Ec",
+    authDomain: "ridouane-gl.firebaseapp.com",
+    projectId: "ridouane-gl",
+    storageBucket: "ridouane-gl.firebasestorage.app",
+    messagingSenderId: "635101420665",
+    appId: "1:635101420665:web:14f7882f28e928388cc8a8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  let isSignup = false;
+
+  window.toggleMode = function() {
+    isSignup = !isSignup;
+    document.getElementById("title").innerText = isSignup ? "Créer un compte" : "Connexion";
+    document.querySelector(".toggle").innerText = isSignup ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? S'inscrire";
+  }
+
+  window.login = async function() {
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const status = document.getElementById("status");
+
+    if (!email || !password) {
+      status.innerText = "Remplis tous les champs.";
+      return;
+    }
+
+    try {
+      if (isSignup) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+      window.location.href = "inbox.html";
+    } catch (e) {
+      status.innerText = "Erreur : " + e.message;
+      console.error(e);
+    }
+  }
+</script>
+
+</body>
+</html>
