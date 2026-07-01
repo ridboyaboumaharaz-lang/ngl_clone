@@ -31,6 +31,236 @@
     margin-bottom: 12px;
   }
   .msg .date { font-size: 11px; opacity: 0.7; margin-top: 8px; }
+  .msg button {
+    background: rgba(255,255,255,0.3);
+    border: none;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 6px;
+    margin-top: 10px;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  #logout {
+    display: block;
+    margin: 0 auto 20px auto;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 10px;
+    background: #fff;
+    color: #ee0979;
+    font-weight: bold;
+  }
+  #empty { text-align: center; opacity: 0.8; margin-top: 40px; }
+  
+  /* Modal */
+  #replyModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+  }
+  #replyModal.show { display: flex; }
+  .modal-content {
+    background: #222;
+    padding: 20px;
+    border-radius: 15px;
+    width: 90%;
+    max-width: 400px;
+  }
+  .modal-content h2 { margin-top: 0; }
+  .modal-content textarea {
+    width: 100%;
+    height: 80px;
+    border-radius: 8px;
+    border: none;
+    padding: 10px;
+    font-size: 14px;
+    box-sizing: border-box;
+    resize: none;
+  }
+  .modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 15px;
+  }
+  .modal-buttons button {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .btn-send {
+    background: #fff;
+    color: #ee0979;
+  }
+  .btn-cancel {
+    background: rgba(255,255,255,0.2);
+    color: white;
+  }
+</style>
+</head>
+<body>
+
+<button id="logout" onclick="logout()">Déconnexion</button>
+<h1>📩 Tes messages anonymes</h1>
+<div id="link-box">Chargement de ton lien...</div>
+<div id="messages"></div>
+<div id="empty" style="display:none;">Aucun message pour l'instant.</div>
+
+<!-- Modal Répondre -->
+<div id="replyModal">
+  <div class="modal-content">
+    <h2>Répondre</h2>
+    <textarea id="replyText" placeholder="Écris ta réponse..."></textarea>
+    <div class="modal-buttons">
+      <button class="btn-send" onclick="sendReply()">Envoyer</button>
+      <button class="btn-cancel" onclick="closeReply()">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  import { getFirestore, collection, query, where, orderBy, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyBaV7Ch57qtY1kmswoU4tBUcbTuUTQV5Ec",
+    authDomain: "ridouane-gl.firebaseapp.com",
+    projectId: "ridouane-gl",
+    storageBucket: "ridouane-gl.firebasestorage.app",
+    messagingSenderId: "635101420665",
+    appId: "1:635101420665:web:14f7882f28e928388cc8a8"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+
+  let currentUsername = "";
+  let currentReplyingTo = null;
+
+  window.logout = function() {
+    signOut(auth).then(() => window.location.href = "login.html");
+  }
+
+  window.closeReply = function() {
+    document.getElementById("replyModal").classList.remove("show");
+    document.getElementById("replyText").value = "";
+    currentReplyingTo = null;
+  }
+
+  window.openReply = function(messageId) {
+    currentReplyingTo = messageId;
+    document.getElementById("replyModal").classList.add("show");
+  }
+
+  window.sendReply = async function() {
+    const text = document.getElementById("replyText").value.trim();
+    if (!text || !currentReplyingTo) return;
+
+    try {
+      await addDoc(collection(db, "replies"), {
+        messageId: currentReplyingTo,
+        from: currentUsername,
+        text: text,
+        createdAt: serverTimestamp()
+      });
+      window.closeReply();
+      alert("Réponse envoyée ✅");
+    } catch (e) {
+      alert("Erreur : " + e.message);
+    }
+  }
+
+  onAuthStateChanged(auth, async (user) => {
+    if (!user) {
+      window.location.href = "login.html";
+      return;
+    }
+
+    currentUsername = user.email.split("@")[0];
+    const linkBox = document.getElementById("link-box");
+    const link = window.location.origin + window.location.pathname.replace("inbox.html", "index.html") + "?u=" + currentUsername;
+    linkBox.innerHTML = "Ton lien à partager :<br><b>" + link + "</b>";
+
+    try {
+      const q = query(
+        collection(db, "messages"),
+        where("to", "==", currentUsername),
+        orderBy("createdAt", "desc")
+      );
+      const snap = await getDocs(q);
+
+      if (snap.empty) {
+        document.getElementById("empty").style.display = "block";
+        return;
+      }
+
+      const container = document.getElementById("messages");
+      snap.forEach(doc => {
+        const data = doc.data();
+        const date = data.createdAt ? data.createdAt.toDate().toLocaleString("fr-FR") : "";
+        
+        const div = document.createElement("div");
+        div.className = "msg";
+        div.innerHTML = `
+          <div>${data.text.replace(/</g, "&lt;")}</div>
+          <div class="date">${date}</div>
+          <button onclick="openReply('${doc.id}')">Répondre</button>
+        `;
+        container.appendChild(div);
+      });
+    } catch (e) {
+      console.error(e);
+      document.getElementById("link-box").innerHTML += "<br>Erreur de chargement.";
+    }
+  });
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ma boîte de réception</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg, #ff6a00, #ee0979);
+    min-height: 100vh;
+    margin: 0;
+    color: white;
+    padding: 20px;
+    box-sizing: border-box;
+  }
+  h1 { font-size: 20px; text-align: center; }
+  #link-box {
+    background: rgba(0,0,0,0.4);
+    padding: 12px;
+    border-radius: 10px;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 14px;
+    word-break: break-all;
+  }
+  .msg {
+    background: rgba(0,0,0,0.4);
+    padding: 15px;
+    border-radius: 12px;
+    margin-bottom: 12px;
+  }
+  .msg .date { font-size: 11px; opacity: 0.7; margin-top: 8px; }
   #logout {
     display: block;
     margin: 0 auto 20px auto;
